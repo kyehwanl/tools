@@ -57,7 +57,7 @@ def cmdProcess(command):
     if debug_output == True:
         if output: print  bcolors.OKGREEN+output+bcolors.ENDC
     if errout: print  bcolors.FAIL+errout+bcolors.ENDC
-    return output
+    return output, errout
 
 
 def cmdProcess2(command):
@@ -405,6 +405,15 @@ def main():
     """
      prerequisite tasks: check bridge configuration
     """
+    print bcolors.WARNING+"[+] prerequisite tasks: check netns support",bcolors.ENDC
+    if dry_run != True:
+        command= "ip netns"
+        retStr,errout=cmdProcess(command)
+        if 'unknown' in errout: #'Object "netns" is unknown'
+            print bcolors.FAIL+"This OS doesn't support 'netns'. Need to install to support netns\n",bcolors.ENDC
+            sys.exit()
+
+
     if conf_only != True:
         print bcolors.WARNING+"[+] prerequisite tasks: check linux bridge instace",bcolors.ENDC
         str1 = ["brctl show | grep", bridge, "| awk '{print $1}'"]
