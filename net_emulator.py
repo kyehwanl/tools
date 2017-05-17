@@ -41,7 +41,7 @@ def usage():
 def cmdProcess(command):
     if dry_run == True:
         if debug_output == True:
-            print bcolors.HEADER, 'dry_run: ', command, bcolors.ENDC
+            print bcolors.OKGREEN, 'dry_run: ', command, bcolors.ENDC
         return None
 
     if debug_output == True:
@@ -295,7 +295,7 @@ def main():
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], "bc:dfhnp:op:rs:vx:",
-                ["help", "output=", "dry-run", "path="])
+                ["help", "output=", "bgpsec", "dry-run", "path="])
     except getopt.GetoptError as err:
         # print help information and exit:
         print bcolors.FAIL+str(err),bcolors.ENDC  # will print something like "option -a not recognized"
@@ -323,7 +323,7 @@ def main():
 
     output = None
     for o, a in opts:
-        if o == "-b":
+        if o in ("-b", "--bgpsec"):
             bgpsec = True
         elif o == "-c":
             count = int(a)
@@ -333,7 +333,7 @@ def main():
             conf_only = True
         elif o == "-n":
             ns_only = True
-        elif o in ("-p", "--path="):
+        elif o in ("-p", "--path"):
             path = a
         elif o == "-r":
             remove = True
@@ -412,6 +412,14 @@ def main():
         if 'unknown' in errout: #'Object "netns" is unknown'
             print bcolors.FAIL+"This OS doesn't support 'netns'. Need to install to support netns\n",bcolors.ENDC
             sys.exit()
+
+        command= "brctl show"
+        retStr,errout=cmdProcess(command)
+        #The program 'brctl' is currently not installed. To run 'brctl' please ask your administrator to install the package 'bridge-utils'
+        if 'not installed' in errout or 'not found' in errout:
+            print bcolors.FAIL+"brctl is not installed. Need to install to brctl\n",bcolors.ENDC
+            sys.exit()
+
 
 
     if conf_only != True:
