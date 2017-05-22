@@ -7,6 +7,8 @@ import subprocess
 
 max_count = 500
 max_prefix = 600000
+baseSKI = "C30433FA1975FF193181458FB902B501EA9789DC"
+nodeSKI = "45CAD0AC44F77EFAA94602E9984305215BF47DCD"
 
 dry_run=False
 debug_output=False
@@ -35,6 +37,7 @@ def usage():
     print "\t-p, --path       : <path>, directory path for bgpd "
     print "\t-r, --remove     : <0|1>, to remove setting"
     print "\t-x, --prefix     : <number>, the number of prefixes to be generated"
+    print "\t-S, --SKI        : <hex bytes>, SKI value 20 byte long hex"
     print "\t-h, --help       : help screen"
     print
 
@@ -168,7 +171,7 @@ def removeSetting(bridge):
 
 
 
-def generateBaseHeader(f, i, bgpsec):
+def generateBaseHeader(f, i, bgpsec, ski):
     headers = [
             'hostname node'+str(i+2)+"\n",
             'password z'+"\n",
@@ -178,11 +181,14 @@ def generateBaseHeader(f, i, bgpsec):
             ]
 
     bgpsecHeaders = [
-            'srx bgpsec ski 0 1 C30433FA1975FF193181458FB902B501EA9789DC\n',
+            'srx bgpsec ski 0 1 %s\n',
             'srx bgpsec active 0\n',
             'srx connect localhost 17900\n',
             'srx evaluation bgpsec\n',
             ]
+
+    #bgpsecHeaders[0] = str(bgpsecHeaders[0]).replace("ski", "%s")
+    bgpsecHeaders[0] = str(bgpsecHeaders[0]) % baseSKI
 
     for header in headers:
         f.write(header)
@@ -219,7 +225,7 @@ def generateNodeHeader(nodeFile, i):
 
 
 
-def generateNodeBodyTail(nodeFile, i, bgpsec):
+def generateNodeBodyTail(nodeFile, i, bgpsec, ski):
     tails = [
             '\n',
             'line vty \n',
@@ -241,13 +247,15 @@ def generateNodeBodyTail(nodeFile, i, bgpsec):
 
     bgpsecBody=[
             '\n',
-            'srx bgpsec ski 0 1 45CAD0AC44F77EFAA94602E9984305215BF47DCD \n',
+            'srx bgpsec ski 0 1 %s\n',
             'srx bgpsec active 0 \n',
             'srx connect localhost 17900 \n',
             'srx evaluation bgpsec \n',
             'neighbor 10.1.1.1 bgpsec both \n',
             '\n'
             ]
+
+    bgpsecBody[1] = str(bgpsecBody[1]) % ski
 
     # in case of base file
     if i == -1:
@@ -273,7 +281,6 @@ def generateNodeBodyTail(nodeFile, i, bgpsec):
 
 
 
-
 def generatePrefix(nodeFile, i, numPrefix):
     if numPrefix: print '+++ generate prefix'
 
@@ -294,8 +301,8 @@ def main():
         sys.exit(1)
 
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "bc:dfhnp:op:rs:vx:",
-                ["help", "output=", "bgpsec", "dry-run", "path="])
+        opts, args = getopt.getopt(sys.argv[1:], "bc:dfhnp:op:rs:S:vx:",
+                ["help", "output=", "bgpsec", "dry-run", "path=", "SKI="])
     except getopt.GetoptError as err:
         # print help information and exit:
         print bcolors.FAIL+str(err),bcolors.ENDC  # will print something like "option -a not recognized"
@@ -315,6 +322,7 @@ def main():
     remove = False
     start_ipaddr=2
     bridge="br1"
+    ski = ""
 
     if len(sys.argv) < 2:
         usage()
@@ -339,6 +347,8 @@ def main():
             remove = True
         elif o == "-s":
             ns_start = int(a)
+        elif o in ("-S", "--SKI"):
+            ski = a
         elif o == "-x":
             numPrefix = int (a)
         elif o in ("-h", "--help"):
@@ -381,6 +391,9 @@ def main():
     if dry_run == True:
         print bcolors.FAIL+"DRY-RUN Test Start\n",bcolors.ENDC
 
+    if not ski:
+        ski = nodeSKI
+
 
 
     """
@@ -399,6 +412,7 @@ def main():
         print 'remove       :', remove
         print 'debug output :', debug_output
         print '-------------------------\n'
+
 
 
 
@@ -455,7 +469,7 @@ def main():
         if dry_run != True:
             print "\n+++ generate bgpd configuration files: ", file_recv
             baseFile = open(file_recv,'w')
-            generateBaseHeader(baseFile, -1, bgpsec)
+            generateBaseHeader(baseFile, -1, bgpsec, ski)
         else:
             print "+++ file", file_recv, "generated"
 
@@ -471,7 +485,7 @@ def main():
                 nodeFile=open(file_name, 'w')
                 generateNodeHeader(nodeFile, i)
                 generatePrefix(nodeFile, i, numPrefix)
-                generateNodeBodyTail(nodeFile, i, bgpsec)
+                generateNodeBodyTail(nodeFile, i, bgpsec, ski)
                 nodeFile.close()
 
                 # base file contents regarding to neighbor and bgpsec
@@ -485,7 +499,7 @@ def main():
 
 
         if baseFile != None:
-            generateNodeBodyTail(baseFile, -1, bgpsec)
+            generateNodeBodyTail(baseFile, -1, bgpsec, ski)
             baseFile.close()
 
 
