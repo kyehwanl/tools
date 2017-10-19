@@ -667,7 +667,7 @@ def main():
                 nodeFile=open(file_name, 'w')
                 generateNodeHeader(nodeFile, i)
                 generatePrefix(nodeFile, i+2, numPrefix, dry_run)
-                generateNodeBodyTail(nodeFile, i, bgpsec)
+                generateNodeBodyTail(nodeFile, i, bgpsec, ski)
                 nodeFile.close()
 
                 # base file contents regarding to neighbor and bgpsec
