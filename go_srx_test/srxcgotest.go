@@ -1,6 +1,8 @@
 package main
 
 /*
+#cgo CFLAGS: -I.
+#cgo LDFLAGS: -L. -lSRxBGPSecOpenSSL
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/param.h>
@@ -60,6 +62,10 @@ typedef struct
   } addr;
 } __attribute__((packed)) SCA_Prefix;
 
+void PrintSCA_Prefix(SCA_Prefix p){
+	printf("From C\n  afi:\t%d\n  safi:\t%d\n  length:\t%d\n  addr:\t%s\n\n",
+		p.afi, p.safi, p.length, p.addr.ip);
+}
 
 typedef struct
 {
@@ -76,129 +82,246 @@ typedef struct
   SCA_Signature* signature;
 } SCA_BGPSecSignData;
 
+int _sign(SCA_BGPSecSignData* signData );
+void printHex(int len, unsigned char* buff);
 */
 import "C"
 
 import (
-        "fmt"
-  //      "testing"
-        "bytes"
-        "encoding/binary"
-        "unsafe"
+	"fmt"
+	//      "testing"
+	"bytes"
+	"encoding/binary"
+	"unsafe"
 )
 
 type Go_SCA_BGPSEC_SecurePathSegment struct {
-  pCount uint8
-  flags uint8
-  asn  uint32
+	pCount uint8
+	flags  uint8
+	asn    uint32
 }
 
-func (g *Go_SCA_BGPSEC_SecurePathSegment) Pack (out unsafe.Pointer) {
+func (g *Go_SCA_BGPSEC_SecurePathSegment) Pack(out unsafe.Pointer) {
 
-    buf := &bytes.Buffer{}
-    /*
-    binary.Write(buf, binary.LittleEndian, g.pCount)
-    binary.Write(buf, binary.LittleEndian, g.flags)
-    binary.Write(buf, binary.LittleEndian, g.asn)
-    */
-    binary.Write(buf, binary.LittleEndian, g)
+	buf := &bytes.Buffer{}
+	/*
+	   binary.Write(buf, binary.LittleEndian, g.pCount)
+	   binary.Write(buf, binary.LittleEndian, g.flags)
+	   binary.Write(buf, binary.LittleEndian, g.asn)
+	*/
+	binary.Write(buf, binary.LittleEndian, g)
 
-    // get the length of memory
-    l := buf.Len()
+	// get the length of memory
+	l := buf.Len()
 
-    //Cast the point to byte slie to allow for direct memory manipulation
-    o := (*[1 << 20]C.uchar)(out)
+	//Cast the point to byte slie to allow for direct memory manipulation
+	o := (*[1 << 20]C.uchar)(out)
 
-    //Write to memory
-    for i := 0; i < l; i++ {
-      b, _ := buf.ReadByte()
-      o[i] = C.uchar(b)
-    }
+	//Write to memory
+	for i := 0; i < l; i++ {
+		b, _ := buf.ReadByte()
+		o[i] = C.uchar(b)
+	}
+}
+
+type Go_SCA_Prefix struct {
+	afi    uint16
+	safi   uint8
+	length uint8
+	addr   [16]uint8
+}
+
+func (g *Go_SCA_Prefix) Pack(out unsafe.Pointer) {
+
+	buf := &bytes.Buffer{}
+	binary.Write(buf, binary.LittleEndian, g)
+	l := buf.Len()
+	o := (*[1 << 20]C.uchar)(out)
+
+	for i := 0; i < l; i++ {
+		b, _ := buf.ReadByte()
+		o[i] = C.uchar(b)
+	}
 }
 
 type Packed struct {
-  T [100]byte
+	T [100]byte
 }
 
 func main() {
-  fmt.Printf("bgpsec sign data testing...\n\n")
+	fmt.Printf("bgpsec sign data testing...\n\n")
 
+	u := &Go_SCA_BGPSEC_SecurePathSegment{
+		pCount: 1,
+		flags:  0x90,
+		asn:    60002,
+	}
+	sps := C.SCA_BGPSEC_SecurePathSegment{}
 
-  u := &Go_SCA_BGPSEC_SecurePathSegment {
-    pCount : 1,
-    flags : 0x90,
-    asn : 60002,
-  }
-  sps := C.SCA_BGPSEC_SecurePathSegment{}
+	// TODO: First way --> works !!
+	///*
+	fmt.Printf("total size of sizeof_SCA_BGPSEC_SecurePathSegmen : %d bytes \n", C.sizeof_SCA_BGPSEC_SecurePathSegment)
+	u.Pack(unsafe.Pointer(&sps))
+	fmt.Printf("data:%#v\n\n", sps)
+	fmt.Printf("data:%+v\n\n", sps)
+	C.PrintPacked(sps)
+	//*/
 
-  // TODO: First way --> works !!
-  ///*
-  u.Pack (unsafe.Pointer(&sps))
-  fmt.Printf("data:%#v\n\n", sps)
-  fmt.Printf("data:%+v\n\n", sps)
-  C.PrintPacked(sps)
-  //*/
+	// TODO: Second way --> not worked yet
+	/*
+	  var buff = bytes.NewBuffer(make([]byte, 0, 100))
+	  if err := binary.Write(buff, binary.LittleEndian, u); err != nil {
+	    fmt.Println(err)
+	  }
+	  fmt.Println(buff)
+	  if err := binary.Read(buff, binary.LittleEndian, &sps); err != nil {
+	    fmt.Println(err)
+	  }
+	  fmt.Println ("u", u, "sps", sps)
+	  C.PrintPacked(sps)
+	*/
 
-  // TODO: Second way --> not worked yet
-  /*
-  var buff = bytes.NewBuffer(make([]byte, 0, 100))
-  if err := binary.Write(buff, binary.LittleEndian, u); err != nil {
-    fmt.Println(err)
-  }
-  fmt.Println(buff)
-  if err := binary.Read(buff, binary.LittleEndian, &sps); err != nil {
-    fmt.Println(err)
-  }
-  fmt.Println ("u", u, "sps", sps)
-  C.PrintPacked(sps)
-  */
+	ga := &Go_SCA_Prefix{
+		afi:    1,
+		safi:   1,
+		length: 4,
+		addr:   [16]byte{},
+	}
+	copy(ga.addr[:], "ABCD")
+	ad := C.SCA_Prefix{}
 
+	ga.Pack(unsafe.Pointer(&ad))
+	C.PrintSCA_Prefix(ad)
 
+	//var t *testing.T
+	var sigData C.SCA_Signature = C.SCA_Signature{
+		ownedByAPI: true,
+		sigLen:     70,
+	}
 
+	hashData := C.SCA_HashMessage{
+		ownedByAPI:        true,
+		bufferSize:        100,
+		buffer:            nil,
+		segmentCount:      1,
+		hashMessageValPtr: nil,
+	}
 
+	/* Library call: printHex function test */
+	b := [...]byte{0x11, 0x22, 0x33}
+	var cb [10]C.uchar
+	cb[0] = C.uchar(b[0])
+	cb[1] = C.uchar(b[1])
+	cb[2] = C.uchar(b[2])
+	//cb := C.uchar(b)
+	C.printHex(C.int(10), &cb[0])
 
-  //var t *testing.T
-  var sigData C.SCA_Signature = C.SCA_Signature {
-    ownedByAPI: true,
-    sigLen: 70,
-  }
+	/* Library call: _sign function testing */
 
-  securePathSegment := C.SCA_BGPSEC_SecurePathSegment {
-    pCount: 1,
-    flags: 0x90,
-    //asn: C.uint(65005),
-  }
+	// ------------ CASE 0 --------------------
+	// panic: runtime error: cgo argument has Go pointer to Go pointer
+	// Reason: cgo doesn't recognize cgo's struct address circularily
+	var ret C.int
 
-  var bgpsecData C.SCA_BGPSecSignData = C.SCA_BGPSecSignData {
-        peerAS: 65005,
-        myHost: &securePathSegment,
-        myASN: 65011,
-        algorithmID: 1,
-        signature: &sigData,
-  }
+	bgpsecData := C.SCA_BGPSecSignData{
+		peerAS:      65011,
+		myHost:      &sps,
+		nlri:        &ad,
+		myASN:       65005,
+		ski:         nil,
+		algorithmID: 1,
+		status:      C.sca_status_t(3),
+		hashMessage: &hashData,
+		signature:   &sigData,
+	}
 
-  fmt.Printf("data:%#v\n\n", bgpsecData)
-  fmt.Printf("data. signature:%#v\n\n\n\n", bgpsecData.signature)
+	fmt.Printf("data:%#v\n\n", bgpsecData)
+	fmt.Printf("data:%+v\n\n", bgpsecData)
 
-  fmt.Printf("data:%+v\n\n", bgpsecData)
-  fmt.Printf("data. signature:%+v\n\n", bgpsecData.signature)
+	fmt.Printf("data. hash :%#v\n\n", bgpsecData.hashMessage)
+	fmt.Printf("data. hash :%+v\n\n", bgpsecData.hashMessage)
 
+	fmt.Printf("data. signature:%#v\n\n", bgpsecData.signature)
+	fmt.Printf("data. signature:%+v\n\n", bgpsecData.signature)
+	//ret = C._sign(&bgpsecData)  <-- Panic
+	// -----------------------------------------
 
+	// ------------ CASE 1 --------------------
+	bgpsecData2 := C.SCA_BGPSecSignData{
+		peerAS:      65011,
+		myHost:      nil,
+		nlri:        nil,
+		myASN:       65005,
+		ski:         nil,
+		algorithmID: 1,
+		status:      C.sca_status_t(3),
+		hashMessage: nil,
+		signature:   nil,
+	}
 
-  /*
-  var t *testing.T
-  var evt C.SDL_KeyboardEvent
-  C.makeEvent(&evt)
-  if C.same(&evt, evt.typ, evt.which, evt.state, evt.keysym.scancode, evt.keysym.sym, evt.keysym.mod, evt.keysym.unicode) == 0 {
-          t.Error("*** bad alignment")
-          C.cTest(&evt)
-          t.Errorf("Go: %#x %#x %#x %#x %#x %#x %#x\n",
-                  evt.typ, evt.which, evt.state, evt.keysym.scancode,
-                  evt.keysym.sym, evt.keysym.mod, evt.keysym.unicode)
-          t.Error(evt)
-  }
-  */
+	//ret = C._sign(&bgpsecData2) --> works
+	fmt.Println("ret:", C.int(ret))
+	if ret == 0 {
+		fmt.Println("Failed")
+	}
+	// -----------------------------------------
+
+	// ------------ CASE 2 --------------------
+	sps2 := C.malloc(C.sizeof_SCA_BGPSEC_SecurePathSegment)
+	o1 := (*[1000]C.uchar)(unsafe.Pointer(&sps))
+	o2 := (*[1000]C.uchar)(sps2)
+
+	for i := 0; i < C.sizeof_SCA_BGPSEC_SecurePathSegment; i++ {
+		o2[i] = o1[i]
+	}
+	bgpsecData2.myHost = (*C.SCA_BGPSEC_SecurePathSegment)(sps2)
+	//ret = C._sign(&bgpsecData2) --> works
+	// -----------------------------------------
+
+	// ------------ CASE 3 --------------------
+	sps3 := (*C.SCA_BGPSEC_SecurePathSegment)(C.malloc(C.sizeof_SCA_BGPSEC_SecurePathSegment))
+	u.Pack(unsafe.Pointer(sps3))
+	//fmt.Printf("data:%#v\n\n", *sps3)
+	//fmt.Printf("data:%+v\n\n", *sps3)
+	//C.PrintPacked(*sps3)
+	bgpsecData2.myHost = sps3
+	//ret = C._sign(&bgpsecData2) --> works
+	// -----------------------------------------
+
+	// ------ prefix handling ---------------
+	prefix := (*C.SCA_Prefix)(C.malloc(C.sizeof_SCA_Prefix))
+	ga.Pack(unsafe.Pointer(prefix))
+	bgpsecData2.nlri = prefix
+
+	skiData := (*C.uchar)(C.malloc(20))
+	bgpsecData2.ski = skiData
+
+	hash := C.malloc(C.sizeof_SCA_HashMessage)
+	h1 := (*[1000]C.uchar)(unsafe.Pointer(&hashData))
+	h2 := (*[1000]C.uchar)(hash)
+	for i := 0; i < C.sizeof_SCA_HashMessage; i++ {
+		h2[i] = h1[i]
+	}
+	bgpsecData2.hashMessage = (*C.SCA_HashMessage)(hash)
+	bgpsecData2.hashMessage = nil
+
+	//sig := (*C.SCA_Signature)(C.malloc(C.sizeof_SCA_Signature))
+	sig := (*C.SCA_Signature)(C.malloc(1000))
+
+	bgpsecData2.signature = sig
+	ret = C._sign(&bgpsecData2)
+
+	/*
+	  var t *testing.T
+	  var evt C.SDL_KeyboardEvent
+	  C.makeEvent(&evt)
+	  if C.same(&evt, evt.typ, evt.which, evt.state, evt.keysym.scancode, evt.keysym.sym, evt.keysym.mod, evt.keysym.unicode) == 0 {
+	          t.Error("*** bad alignment")
+	          C.cTest(&evt)
+	          t.Errorf("Go: %#x %#x %#x %#x %#x %#x %#x\n",
+	                  evt.typ, evt.which, evt.state, evt.keysym.scancode,
+	                  evt.keysym.sym, evt.keysym.mod, evt.keysym.unicode)
+	          t.Error(evt)
+	  }
+	*/
 }
-
-
-
