@@ -2,7 +2,7 @@ package main
 
 /*
 #cgo CFLAGS: -I.
-#cgo LDFLAGS: -L. -lSRxBGPSecOpenSSL -lSRxCryptoAPI
+#cgo LDFLAGS: -L. -lSRxBGPSecOpenSSL -lSRxCryptoAPI -Wl,-rpath -Wl,/home/kyehwanl/project/gowork/src/tools/go_srx_test
 #include <stdio.h>
 #include "srxcryptoapi.h"
 
@@ -29,7 +29,7 @@ import (
 	"encoding/hex"
 	"unsafe"
         "net"
-        //"os"
+        _ "os"
 )
 
 type scaStatus uint32
