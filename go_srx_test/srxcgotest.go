@@ -2,7 +2,7 @@ package main
 
 /*
 #cgo CFLAGS: -I.
-#cgo LDFLAGS: -L. -lSRxBGPSecOpenSSL
+#cgo LDFLAGS: -L. -lSRxBGPSecOpenSSL -lSRxCryptoAPI
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/param.h>
@@ -84,6 +84,8 @@ typedef struct
 
 int _sign(SCA_BGPSecSignData* signData );
 void printHex(int len, unsigned char* buff);
+int init(const char* value, int debugLevel, sca_status_t* status);
+int sca_SetKeyPath (char* key_path);
 */
 import "C"
 
@@ -92,8 +94,11 @@ import (
 	//      "testing"
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"unsafe"
 )
+
+type scaStatus uint32
 
 type Go_SCA_BGPSEC_SecurePathSegment struct {
 	pCount uint8
@@ -109,7 +114,8 @@ func (g *Go_SCA_BGPSEC_SecurePathSegment) Pack(out unsafe.Pointer) {
 	   binary.Write(buf, binary.LittleEndian, g.flags)
 	   binary.Write(buf, binary.LittleEndian, g.asn)
 	*/
-	binary.Write(buf, binary.LittleEndian, g)
+	//binary.Write(buf, binary.LittleEndian, g)
+	binary.Write(buf, binary.BigEndian, g)
 
 	// get the length of memory
 	l := buf.Len()
@@ -149,12 +155,37 @@ type Packed struct {
 }
 
 func main() {
+	// --------- call sca_SetKeyPath -----------------------
+	fmt.Printf("+ setKey path call testing...\n\n")
+	//sca_SetKeyPath needed in libSRxCryptoAPI.so
+
+	keyPath := C.CString("/opt/project/srx_test1/keys/")
+	keyRet := C.sca_SetKeyPath(keyPath)
+	fmt.Println("sca_SetKeyPath() return:", keyRet)
+	if keyRet != 1 {
+		fmt.Errorf("setKey failed")
+	}
+
+	// --------- call Init() function ---------------------
+	fmt.Printf("+ Init call testing...\n\n")
+
+	str := C.CString("PRIV:/opt/project/srx_test1/keys/priv-ski-list.txt")
+	fmt.Printf("str: %s\n", C.GoString(str))
+
+	var stat *scaStatus
+	initRet := C.init(str, C.int(7), (*C.uint)(stat))
+	fmt.Println("Init() return:", initRet)
+	if initRet != 1 {
+		fmt.Errorf("init failed")
+	}
+
+	// --------- call _sign() function  ---------------------
 	fmt.Printf("bgpsec sign data testing...\n\n")
 
 	u := &Go_SCA_BGPSEC_SecurePathSegment{
 		pCount: 1,
 		flags:  0x90,
-		asn:    60002,
+		asn:    65005,
 	}
 	sps := C.SCA_BGPSEC_SecurePathSegment{}
 
@@ -288,14 +319,33 @@ func main() {
 	//ret = C._sign(&bgpsecData2) --> works
 	// -----------------------------------------
 
+	//
+	// ------------ CASE 4 (final) -------------
+	//
 	// ------ prefix handling ---------------
 	prefix := (*C.SCA_Prefix)(C.malloc(C.sizeof_SCA_Prefix))
 	ga.Pack(unsafe.Pointer(prefix))
 	bgpsecData2.nlri = prefix
 
-	skiData := (*C.uchar)(C.malloc(20))
-	bgpsecData2.ski = skiData
+	// ------ ski handling ---------------
+	skiData := C.CString("45CAD0AC44F77EFAA94602E9984305215BF47DCD")
+	pski := unsafe.Pointer(skiData)
+	bgpsecData2.ski = (*C.uchar)(pski)
+	//skiData := (*C.uchar)(C.malloc(20))
+	//bgpsecData2.ski = skiData
 
+	bs, _ := hex.DecodeString("45CAD0AC44F77EFAA94602E9984305215BF47DCD")
+	fmt.Printf("type of bs: %T\n", bs)
+	fmt.Printf("string test: %02X \n", bs)
+
+	cbuf := (*[20]C.uchar)(C.malloc(20))
+	cstr := (*[20]C.uchar)(unsafe.Pointer(&bs[0]))
+	for i := 0; i < 20; i++ {
+		cbuf[i] = cstr[i]
+	}
+	bgpsecData2.ski = (*C.uchar)(&cbuf[0])
+
+	// ------ hash message handling  ---------------
 	hash := C.malloc(C.sizeof_SCA_HashMessage)
 	h1 := (*[1000]C.uchar)(unsafe.Pointer(&hashData))
 	h2 := (*[1000]C.uchar)(hash)
@@ -305,11 +355,32 @@ func main() {
 	bgpsecData2.hashMessage = (*C.SCA_HashMessage)(hash)
 	bgpsecData2.hashMessage = nil
 
+	/* --> Do not put an allocated memory, otherwise fatal error occured on running _sign->freeSignature()
 	//sig := (*C.SCA_Signature)(C.malloc(C.sizeof_SCA_Signature))
-	sig := (*C.SCA_Signature)(C.malloc(1000))
+	//bgpsecData2.signature = sig
+	*/
 
-	bgpsecData2.signature = sig
+	bgpsecData2.signature = nil
 	ret = C._sign(&bgpsecData2)
+
+	fmt.Println("return: value:", ret, " and status: ", bgpsecData2.status)
+	if ret == 1 {
+		fmt.Println(" _sign function success...")
+	} else if ret == 0 {
+		fmt.Println(" _sign function failed...")
+		switch bgpsecData2.status {
+		case 1:
+			fmt.Println("signature error")
+		case 2:
+			fmt.Println("Key not found")
+		case 0x10000:
+			fmt.Println("no data")
+		case 0x20000:
+			fmt.Println("no prefix")
+		case 0x40000:
+			fmt.Println("Invalid key")
+		}
+	}
 
 	/*
 	  var t *testing.T
