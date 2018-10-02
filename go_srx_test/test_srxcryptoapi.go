@@ -198,6 +198,16 @@ func main() {
 	}
 	//bgpsecData.hashMessage = (*C.SCA_HashMessage)(hash)
 	//bgpsecData.hashMessage = nil
+	var peeras uint32 = 65011
+	big := make([]byte, 4, 4)
+	for i := 0; i < 4; i++ {
+		u8 := *(*uint8)(unsafe.Pointer(uintptr(unsafe.Pointer(&peeras)) + uintptr(i)))
+		big = append(big, u8)
+	}
+
+	fmt.Printf("++ peerAS :%#v\n", big)
+	fmt.Printf("++ peerAS BigEndian :%#v\n", binary.BigEndian.Uint32(big[4:8]))
+	//os.Exit(3)
 
 	bgpsecData := C.SCA_BGPSecSignData{
 		peerAS:      65011,
