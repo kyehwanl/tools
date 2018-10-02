@@ -2,7 +2,7 @@ package main
 
 /*
 #cgo CFLAGS: -I.
-#cgo LDFLAGS: -L. -lSRxBGPSecOpenSSL -lSRxCryptoAPI -Wl,-rpath -Wl,/home/kyehwanl/project/gowork/src/tools/go_srx_test
+#cgo LDFLAGS: -L. -lSRxBGPSecOpenSSL -lSRxCryptoAPI -Wl,-rpath -Wl,/opt/project/gobgp_test/tools/go_srx_test
 #include <stdio.h>
 #include "srxcryptoapi.h"
 
@@ -23,13 +23,13 @@ int sca_SetKeyPath (char* key_path);
 import "C"
 
 import (
-	"fmt"
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
+	"net"
+	_ "os"
 	"unsafe"
-        "net"
-        _ "os"
 )
 
 type scaStatus uint32
@@ -84,13 +84,13 @@ func (g *Go_SCA_Prefix) Pack(out unsafe.Pointer) {
 	}
 }
 
-
 func main() {
 	// --------- call sca_SetKeyPath -----------------------
 	fmt.Printf("+ setKey path call testing...\n\n")
 	//sca_SetKeyPath needed in libSRxCryptoAPI.so
 
-	keyPath := C.CString("/home/kyehwanl/project/srx_test1/keys/")
+	//keyPath := C.CString("/home/kyehwanl/project/srx_test1/keys/")
+	keyPath := C.CString("/opt/project/srx_test1/keys/")
 	keyRet := C.sca_SetKeyPath(keyPath)
 	fmt.Println("sca_SetKeyPath() return:", keyRet)
 	if keyRet != 1 {
@@ -100,7 +100,8 @@ func main() {
 	// --------- call Init() function ---------------------
 	fmt.Printf("+ Init call testing...\n\n")
 
-	str := C.CString("PRIV:/home/kyehwanl/project/srx_test1/keys/priv-ski-list.txt")
+	//str := C.CString("PRIV:/home/kyehwanl/project/srx_test1/keys/priv-ski-list.txt")
+	str := C.CString("PRIV:/opt/project/srx_test1/keys/priv-ski-list.txt")
 	fmt.Printf("+ str: %s\n", C.GoString(str))
 
 	var stat *scaStatus
@@ -110,11 +111,10 @@ func main() {
 		fmt.Errorf("init failed")
 	}
 
-        //
-	//  call _sign() function 
-        //
+	//
+	//  call _sign() function
+	//
 	fmt.Printf("+ bgpsec sign data testing...\n\n")
-
 
 	// ------ prefix handling ---------------
 	ga := &Go_SCA_Prefix{
@@ -125,16 +125,21 @@ func main() {
 	}
 	prefix := (*C.SCA_Prefix)(C.malloc(C.sizeof_SCA_Prefix))
 	//ad := C.SCA_Prefix{}
-        ipstr := "100.1.1.0"
-        IPAddress := net.ParseIP(ipstr)
-        //ipvalue = binary.BigEndian.Uint32(IPAddress[12:16])
-        copy(ga.addr[:], IPAddress[12:16])
 
-        /*
-        fmt.Printf("ipaddress: %#v\n", IPAddress )
-        fmt.Println("4-byte rep: ", IPAddress.To4())
-        fmt.Println("ip: ", binary.BigEndian.Uint32(IPAddress[12:16]))
-        */
+	// prefix handling case 1
+	ipstr := "200.17.20.21"
+	IPAddress := net.ParseIP(ipstr)
+	copy(ga.addr[:], IPAddress[12:16])
+
+	// prefix handling case 2
+	netip := net.IP{0x64, 0x01, 0x11, 0x0}
+	copy(ga.addr[:], netip)
+
+	/*
+	   fmt.Printf("ipaddress: %#v\n", IPAddress )
+	   fmt.Println("4-byte rep: ", IPAddress.To4())
+	   fmt.Println("ip: ", binary.BigEndian.Uint32(IPAddress[12:16]))
+	*/
 
 	//ga.Pack(unsafe.Pointer(&ad))
 	//C.PrintSCA_Prefix(ad)
@@ -142,8 +147,7 @@ func main() {
 	ga.Pack(unsafe.Pointer(prefix))
 	C.PrintSCA_Prefix(*prefix)
 
-        //os.Exit(3)
-
+	//os.Exit(3)
 
 	// ------- Library call: printHex function test ----------
 	b := [...]byte{0x11, 0x22, 0x33}
@@ -153,8 +157,6 @@ func main() {
 	cb[2] = C.uchar(b[2])
 	//cb := C.uchar(b)
 	C.printHex(C.int(10), &cb[0])
-
-
 
 	// ------ secure Path segment generation ---------------
 	u := &Go_SCA_BGPSEC_SecurePathSegment{
@@ -168,7 +170,6 @@ func main() {
 	//fmt.Printf("data:%#v\n\n", *sps)
 	//fmt.Printf("data:%+v\n\n", *sps)
 	C.PrintPacked(*sps)
-
 
 	// ------ ski handling ---------------
 	bs, _ := hex.DecodeString("45CAD0AC44F77EFAA94602E9984305215BF47DCD")
@@ -210,14 +211,29 @@ func main() {
 		signature:   nil,
 	}
 
-
-        ret := C._sign(&bgpsecData)
+	ret := C._sign(&bgpsecData)
 
 	fmt.Println("return: value:", ret, " and status: ", bgpsecData.status)
 	if ret == 1 {
-		fmt.Println(" _sign function success...")
+		fmt.Println(" _sign function SUCCESS ...")
+
+		if bgpsecData.signature != nil {
+			fmt.Printf("signature: %#v\n", bgpsecData.signature)
+
+			ret_array := func(sig_data *C.SCA_Signature) []uint8 {
+				buf := make([]uint8, 0, uint(sig_data.sigLen))
+				for i := 0; i < int(sig_data.sigLen); i++ {
+					u8 := *(*uint8)(unsafe.Pointer(uintptr(unsafe.Pointer(sig_data.sigBuff)) + uintptr(i)))
+					buf = append(buf, u8)
+				}
+				return buf
+			}(bgpsecData.signature)
+
+			fmt.Println("ret:", ret_array)
+		}
+
 	} else if ret == 0 {
-		fmt.Println(" _sign function failed...")
+		fmt.Println(" _sign function Failed ...")
 		switch bgpsecData.status {
 		case 1:
 			fmt.Println("signature error")

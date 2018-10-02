@@ -159,7 +159,8 @@ func main() {
 	fmt.Printf("+ setKey path call testing...\n\n")
 	//sca_SetKeyPath needed in libSRxCryptoAPI.so
 
-	keyPath := C.CString("/home/kyehwanl/project/srx_test1/keys/")
+	//keyPath := C.CString("/home/kyehwanl/project/srx_test1/keys/")
+	keyPath := C.CString("/opt/project/srx_test1/keys/")
 	keyRet := C.sca_SetKeyPath(keyPath)
 	fmt.Println("sca_SetKeyPath() return:", keyRet)
 	if keyRet != 1 {
@@ -169,7 +170,8 @@ func main() {
 	// --------- call Init() function ---------------------
 	fmt.Printf("+ Init call testing...\n\n")
 
-	str := C.CString("PRIV:/home/kyehwanl/project/srx_test1/keys/priv-ski-list.txt")
+	//str := C.CString("PRIV:/home/kyehwanl/project/srx_test1/keys/priv-ski-list.txt")
+	str := C.CString("PRIV:/opt/project/srx_test1/keys/priv-ski-list.txt")
 	fmt.Printf("str: %s\n", C.GoString(str))
 
 	var stat *scaStatus
@@ -365,9 +367,25 @@ func main() {
 
 	fmt.Println("return: value:", ret, " and status: ", bgpsecData2.status)
 	if ret == 1 {
-		fmt.Println(" _sign function success...")
+		fmt.Println(" _sign function SUCCESS ...")
+
+		if bgpsecData2.signature != nil {
+			fmt.Printf("signature: %#v\n", bgpsecData2.signature)
+
+			ret_array := func(sig_data *C.SCA_Signature) []uint8 {
+				buf := make([]uint8, 0, uint(sig_data.sigLen))
+				for i := 0; i < int(sig_data.sigLen); i++ {
+					u8 := *(*uint8)(unsafe.Pointer(uintptr(unsafe.Pointer(sig_data.sigBuff)) + uintptr(i)))
+					buf = append(buf, u8)
+				}
+				return buf
+			}(bgpsecData2.signature)
+
+			fmt.Println("ret:", ret_array)
+		}
+
 	} else if ret == 0 {
-		fmt.Println(" _sign function failed...")
+		fmt.Println(" _sign function Failed...")
 		switch bgpsecData2.status {
 		case 1:
 			fmt.Println("signature error")
