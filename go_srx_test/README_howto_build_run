@@ -1,0 +1,6 @@
+
+How to build and run
+--------------------
+    go run test_srxcryptoapi.go
+    or 
+    LD_LIBRARY_PATH=. go run  test_srxcryptoapi.go
