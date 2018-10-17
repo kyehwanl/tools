@@ -1,0 +1,214 @@
+vmware.011-antd [1001]{~}-> sudo tshark -i eno16777984 -nn -f"tcp port 179" -x -V -R"bgp.type==2"                            [89/163]
+
+** (process:24208): WARNING **: /root/.wireshark/preferences line 2756: No such preference "rpkirtr.tcp.port" (applying your preferen
+ces once should remove this warning)
+tshark: -R without -2 is deprecated. For single-pass filtering use -Y.
+Running as user "root" and group "root". This could be dangerous.
+Capturing on 'eno16777984'
+Frame 24: 224 bytes on wire (1792 bits), 224 bytes captured (1792 bits) on interface 0
+    Interface id: 0
+    Encapsulation type: Ethernet (1)
+    Arrival Time: Oct 17, 2018 17:06:05.910270580 EDT
+    [Time shift for this packet: 0.000000000 seconds]
+    Epoch Time: 1539810365.910270580 seconds
+    [Time delta from previous captured frame: 0.961997319 seconds]
+    [Time delta from previous displayed frame: 0.000000000 seconds]
+    [Time since reference or first frame: 42.005443655 seconds]
+    Frame Number: 24
+    Frame Length: 224 bytes (1792 bits)
+    Capture Length: 224 bytes (1792 bits)
+    [Frame is marked: False]
+    [Frame is ignored: False]
+    [Protocols in frame: eth:ip:tcp:bgp]
+Ethernet II, Src: 00:50:56:88:07:82 (00:50:56:88:07:82), Dst: 00:50:56:88:bd:4d (00:50:56:88:bd:4d)
+    Destination: 00:50:56:88:bd:4d (00:50:56:88:bd:4d)
+        Address: 00:50:56:88:bd:4d (00:50:56:88:bd:4d)
+        .... ..0. .... .... .... .... = LG bit: Globally unique address (factory default)
+        .... ...0 .... .... .... .... = IG bit: Individual address (unicast)
+    Source: 00:50:56:88:07:82 (00:50:56:88:07:82)
+        Address: 00:50:56:88:07:82 (00:50:56:88:07:82)
+        .... ..0. .... .... .... .... = LG bit: Globally unique address (factory default)
+        .... ...0 .... .... .... .... = IG bit: Individual address (unicast)
+    Type: IP (0x0800)
+Internet Protocol Version 4, Src: 10.0.50.11 (10.0.50.11), Dst: 10.0.50.5 (10.0.50.5)
+    Version: 4
+    Header length: 20 bytes
+    Differentiated Services Field: 0xc0 (DSCP 0x30: Class Selector 6; ECN: 0x00: Not-ECT (Not ECN-Capable Transport))
+        1100 00.. = Differentiated Services Codepoint: Class Selector 6 (0x30)
+        .... ..00 = Explicit Congestion Notification: Not-ECT (Not ECN-Capable Transport) (0x00)
+    Total Length: 210
+    Identification: 0x04ef (1263)
+    Flags: 0x02 (Don't Fragment)
+        0... .... = Reserved bit: Not set
+        .1.. .... = Don't fragment: Set
+        ..0. .... = More fragments: Not set
+    Fragment offset: 0
+    Time to live: 1
+        [Expert Info (Note/Sequence): "Time To Live" only 1]
+            [Message: "Time To Live" only 1]
+            [Severity level: Note]
+            [Group: Sequence]
+    Protocol: TCP (6)
+    Header checksum: 0xfb67 [validation disabled]
+        [Good: False]
+        [Bad: False]
+    Source: 10.0.50.11 (10.0.50.11)
+    Destination: 10.0.50.5 (10.0.50.5)
+Transmission Control Protocol, Src Port: 179 (179), Dst Port: 45702 (45702), Seq: 106, Ack: 75, Len: 158
+    Source port: 179 (179)
+    Destination port: 45702 (45702)
+    [Stream index: 3]
+    Sequence number: 106    (relative sequence number)
+    [Next sequence number: 264    (relative sequence number)]
+    Acknowledgment number: 75    (relative ack number)
+    Header length: 32 bytes
+    Flags: 0x018 (PSH, ACK)
+        000. .... .... = Reserved: Not set
+        ...0 .... .... = Nonce: Not set
+        .... 0... .... = Congestion Window Reduced (CWR): Not set
+        .... .0.. .... = ECN-Echo: Not set
+        .... ..0. .... = Urgent: Not set
+        .... ...1 .... = Acknowledgment: Set
+        .... .... 1... = Push: Set
+        .... .... .0.. = Reset: Not set
+        .... .... ..0. = Syn: Not set
+        .... .... ...0 = Fin: Not set
+    Window size value: 227
+    [Calculated window size: 29056]
+    [Window size scaling factor: 128]
+    Checksum: 0x78d4 [validation disabled]
+        [Good Checksum: False]
+        [Bad Checksum: False]
+    Options: (12 bytes), No-Operation (NOP), No-Operation (NOP), Timestamps
+        No-Operation (NOP)
+            Type: 1
+                0... .... = Copy on fragmentation: No
+                .00. .... = Class: Control (0)
+                ...0 0001 = Number: No-Operation (NOP) (1)
+        No-Operation (NOP)
+            Type: 1
+                0... .... = Copy on fragmentation: No
+                .00. .... = Class: Control (0)
+                ...0 0001 = Number: No-Operation (NOP) (1)
+        Timestamps: TSval 3578047797, TSecr 2298509286
+            Kind: Timestamp (8)
+            Length: 10
+            Timestamp value: 3578047797
+            Timestamp echo reply: 2298509286
+    [SEQ/ACK analysis]
+        [Bytes in flight: 158]
+Border Gateway Protocol - UPDATE Message
+    Marker: ffffffffffffffffffffffffffffffff
+    Length: 158
+    Type: UPDATE Message (2)
+    Unfeasible routes length: 0 bytes
+    Total path attribute length: 135 bytes
+    Path attributes
+        ORIGIN: IGP (4 bytes)
+            Flags: 0x40 (Well-known, Transitive, Complete)
+                0... .... = Optional: Well-known
+                .1.. .... = Transitive: Transitive
+                ..0. .... = Partial: Complete
+                ...0 .... = Length: Regular length
+            Type code: ORIGIN (1)
+            Length: 1 byte
+            Origin: IGP (0)
+        MULTI_EXIT_DISC: 0 (7 bytes)
+            Flags: 0x80 (Optional, Non-transitive, Complete)
+                1... .... = Optional: Optional
+                .0.. .... = Transitive: Non-transitive
+                ..0. .... = Partial: Complete
+                ...0 .... = Length: Regular length
+            Type code: MULTI_EXIT_DISC (4)
+            Length: 4 bytes
+            Multiple exit discriminator: 0
+        MP_REACH_NLRI (16 bytes)
+            Flags: 0x80 (Optional, Non-transitive, Complete)
+                1... .... = Optional: Optional
+                .0.. .... = Transitive: Non-transitive
+                ..0. .... = Partial: Complete
+                ...0 .... = Length: Regular length
+            Type code: MP_REACH_NLRI (14)
+            Length: 13 bytes
+            Address family: IPv4 (1)
+            Subsequent address family identifier: Unicast (1)
+            Next hop network address (4 bytes)
+                Next hop: Optional, Non-transitive, Complete10.0.50.11 (4)
+            Subnetwork points of attachment: 0
+            Network layer reachability information (4 bytes)
+                100.10.10.0/24
+                    MP Reach NLRI prefix length: 24
+                    MP Reach NLRI IPv4 prefix: 100.10.10.0 (100.10.10.0)
+        Unknown (108 bytes)
+            Flags: 0x90 (Optional, Non-transitive, Complete, Extended Length)
+                1... .... = Optional: Optional
+                .0.. .... = Transitive: Non-transitive
+                ..0. .... = Partial: Complete
+                ...1 .... = Length: Extended length
+            Type code: Unknown (33)
+            Length: 104 bytes
+            Unknown (104 bytes)
+
+0000  00 50 56 88 bd 4d 00 50 56 88 07 82 08 00 45 c0   .PV..M.PV.....E.
+0010  00 d2 04 ef 40 00 01 06 fb 67 0a 00 32 0b 0a 00   ....@....g..2...
+0020  32 05 00 b3 b2 86 98 06 ae 10 52 63 35 b4 80 18   2.........Rc5...
+0030  00 e3 78 d4 00 00 01 01 08 0a d5 44 ad 35 89 00   ..x........D.5..
+0040  77 e6 ff ff ff ff ff ff ff ff ff ff ff ff ff ff   w...............
+0050  ff ff 00 9e 02 00 00 00 87 40 01 01 00 80 04 04   .........@......
+0060  00 00 00 00 80 0e 0d 00 01 01 04 0a 00 32 0b 00   .............2..
+0070  18 64 0a 0a 90 21 00 68 00 08 01 00 00 00 fd f3   .d...!.h........
+0080  00 60 01 45 ca d0 ac 44 f7 7e fa a9 46 02 e9 98   .`.E...D.~..F...
+0090  43 05 21 5b f4 7d cd 00 47 30 45 02 21 00 b3 e8   C.![.}..G0E.!...
+00a0  cc d2 cb ba 96 47 e3 1f 74 97 a3 77 74 55 86 44   .....G..t..wtU.D
+00b0  09 67 ec 02 60 3f 05 e2 1b 47 62 ab de d9 02 20   .g..`?...Gb.... 
+00c0  05 58 e5 72 c5 61 91 47 99 86 16 3e 1e 4a 92 5e   .X.r.a.G...>.J.^
+00d0  e8 26 03 1f 5d 5a 36 92 18 1e 8b 3e a7 26 4b 61   .&..]Z6....>.&Ka
+
+
+
+
+
+(* BGPSec Data Analysis)
+18 64 0a 0a 90 21 00 68 00 08 01 00 00 00 fd f3
+00 60 01 45 ca d0 ac 44 f7 7e fa a9 46 02 e9 98
+43 05 21 5b f4 7d cd 00 47 30 45 02 21 00 b3 e8
+cc d2 cb ba 96 47 e3 1f 74 97 a3 77 74 55 86 44
+09 67 ec 02 60 3f 05 e2 1b 47 62 ab de d9 02 20
+05 58 e5 72 c5 61 91 47 99 86 16 3e 1e 4a 92 5e
+e8 26 03 1f 5d 5a 36 92 18 1e 8b 3e a7 26 4b 61
+
+
+
+** Prefix NLRI Info
+18 64 0a 0a : 100.10.10.0/24
+
+            ** bgpsec attr (Flag, TypeCode, AttrLength)
+            90 21 00 68
+
+                        ** SecurePath data (length, pCount, Flags, ASN)
+                        00 08 01 00 00 00 fd f3
+
+** Secure Segment Block : (length, AlgoID)
+00 60 01
+
+         ** Secure Segment Block : SKI
+         45 ca d0 ac 44 f7 7e fa a9 46 02 e9 98
+43 05 21 5b f4 7d cd
+
+                     ** Sigature length
+                     00 47
+
+                            ** Secure Segment Block : Signature
+                           30 45 02 21 00 b3 e8
+cc d2 cb ba 96 47 e3 1f 74 97 a3 77 74 55 86 44
+09 67 ec 02 60 3f 05 e2 1b 47 62 ab de d9 02 20
+05 58 e5 72 c5 61 91 47 99 86 16 3e 1e 4a 92 5e
+e8 26 03 1f 5d 5a 36 92 18 1e 8b 3e a7 26 4b 61
+
+
+
+
+
+
+
+
