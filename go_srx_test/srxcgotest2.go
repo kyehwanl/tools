@@ -8,6 +8,7 @@ package main
 #include <sys/param.h>
 #include <netinet/in.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #define SKI_LENGTH                 20
 
 typedef u_int32_t sca_status_t;
@@ -63,7 +64,7 @@ typedef struct
 } __attribute__((packed)) SCA_Prefix;
 
 void PrintSCA_Prefix(SCA_Prefix p){
-	printf("From C\n  afi:\t%d\n  safi:\t%d\n  length:\t%d\n  addr:\t%s\n\n",
+	printf("From C\n  afi:\t%d\n  safi:\t%d\n  length:\t%d\n  addr:\t%x\n\n",
 		p.afi, p.safi, p.length, p.addr.ip);
 }
 
@@ -95,6 +96,7 @@ int _sign(SCA_BGPSecSignData* signData );
 void printHex(int len, unsigned char* buff);
 int init(const char* value, int debugLevel, sca_status_t* status);
 int sca_SetKeyPath (char* key_path);
+int validate(SCA_BGPSecValidationData* data);
 */
 import "C"
 
@@ -104,6 +106,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"net"
 	"unsafe"
 )
 
@@ -180,7 +183,8 @@ func main() {
 	fmt.Printf("+ Init call testing...\n\n")
 
 	//str := C.CString("PRIV:/home/kyehwanl/project/srx_test1/keys/priv-ski-list.txt")
-	str := C.CString("PRIV:/opt/project/srx_test1/keys/priv-ski-list.txt")
+	//str := C.CString("PRIV:/opt/project/srx_test1/keys/priv-ski-list.txt")
+	str := C.CString("PUB:/opt/project/srx_test1/keys/ski-list.txt;PRIV:/opt/project/srx_test1/keys/priv-ski-list.txt")
 	fmt.Printf("str: %s\n", C.GoString(str))
 
 	var stat *scaStatus
@@ -312,6 +316,7 @@ func main() {
 
 	// ------------ CASE 2 --------------------
 	sps2 := C.malloc(C.sizeof_SCA_BGPSEC_SecurePathSegment)
+	defer C.free(unsafe.Pointer(sps2))
 	o1 := (*[1000]C.uchar)(unsafe.Pointer(&sps))
 	o2 := (*[1000]C.uchar)(sps2)
 
@@ -324,6 +329,7 @@ func main() {
 
 	// ------------ CASE 3 --------------------
 	sps3 := (*C.SCA_BGPSEC_SecurePathSegment)(C.malloc(C.sizeof_SCA_BGPSEC_SecurePathSegment))
+	defer C.free(unsafe.Pointer(sps3))
 	u.Pack(unsafe.Pointer(sps3))
 	//fmt.Printf("data:%#v\n\n", *sps3)
 	//fmt.Printf("data:%+v\n\n", *sps3)
@@ -337,6 +343,7 @@ func main() {
 	//
 	// ------ prefix handling ---------------
 	prefix := (*C.SCA_Prefix)(C.malloc(C.sizeof_SCA_Prefix))
+	defer C.free(unsafe.Pointer(prefix))
 	ga.Pack(unsafe.Pointer(prefix))
 	bgpsecData2.nlri = prefix
 
@@ -352,6 +359,7 @@ func main() {
 	fmt.Printf("string test: %02X \n", bs)
 
 	cbuf := (*[20]C.uchar)(C.malloc(20))
+	defer C.free(unsafe.Pointer(cbuf))
 	cstr := (*[20]C.uchar)(unsafe.Pointer(&bs[0]))
 	for i := 0; i < 20; i++ {
 		cbuf[i] = cstr[i]
@@ -360,6 +368,7 @@ func main() {
 
 	// ------ hash message handling  ---------------
 	hash := C.malloc(C.sizeof_SCA_HashMessage)
+	defer C.free(hash)
 	h1 := (*[1000]C.uchar)(unsafe.Pointer(&hashData))
 	h2 := (*[1000]C.uchar)(hash)
 	for i := 0; i < C.sizeof_SCA_HashMessage; i++ {
@@ -411,17 +420,29 @@ func main() {
 		}
 	}
 
-	/* Validation Test */
+	/* ------------------------------------------
+	 * Validation Test
+	 * ------------------------------------------
+	 */
+	var myas uint32 = 65005
+	big := make([]byte, 4, 4)
+	for i := 0; i < 4; i++ {
+		u8 := *(*uint8)(unsafe.Pointer(uintptr(unsafe.Pointer(&myas)) + uintptr(i)))
+		big = append(big, u8)
+	}
+
 	valData := C.SCA_BGPSecValidationData{
-		myAS:             65005,
+		myAS:             C.uint(binary.BigEndian.Uint32(big[4:8])),
 		status:           C.sca_status_t(0),
 		bgpsec_path_attr: nil,
 		nlri:             nil,
-		hashMessage:      nil,
+		hashMessage:      [2](*C.SCA_HashMessage){},
 	}
+	//valData.hashMessage[0] = nil
+	//valData.hashMessage[1] = nil
 
 	bs_path_attr := []byte{
-		0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0xfd, 0xf3,
+		0x90, 0x21, 0x00, 0x68, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00, 0xfd, 0xf3,
 		0x00, 0x60, 0x01, 0x45, 0xca, 0xd0, 0xac, 0x44, 0xf7, 0x7e, 0xfa, 0xa9, 0x46, 0x02, 0xe9, 0x98,
 		0x43, 0x05, 0x21, 0x5b, 0xf4, 0x7d, 0xcd, 0x00, 0x47, 0x30, 0x45, 0x02, 0x21, 0x00, 0xb3, 0xe8,
 		0xcc, 0xd2, 0xcb, 0xba, 0x96, 0x47, 0xe3, 0x1f, 0x74, 0x97, 0xa3, 0x77, 0x74, 0x55, 0x86, 0x44,
@@ -430,10 +451,74 @@ func main() {
 		0xe8, 0x26, 0x03, 0x1f, 0x5d, 0x5a, 0x36, 0x92, 0x18, 0x1e, 0x8b, 0x3e, 0xa7, 0x26, 0x4b, 0x61,
 	}
 
-	bs_path_attr_length := 0x68
-	pa := C.malloc(C.int(bs_path_attr_length))
-	valData.bgpsec_path_attr = (*C.uint8)(pa)
+	/* signature  buffer handling*/
+	bs_path_attr_length := 0x6c // 0x68 + 4
+	pa := C.malloc(C.ulong(bs_path_attr_length))
+	defer C.free(pa)
 
+	buf := &bytes.Buffer{}
+	binary.Write(buf, binary.BigEndian, bs_path_attr)
+	bl := buf.Len()
+	o := (*[1 << 20]C.uchar)(pa)
+
+	for i := 0; i < bl; i++ {
+		b, _ := buf.ReadByte()
+		o[i] = C.uchar(b)
+	}
+	valData.bgpsec_path_attr = (*C.uchar)(pa)
+
+	/* prefix handling */
+	prefix2 := (*C.SCA_Prefix)(C.malloc(C.sizeof_SCA_Prefix))
+	defer C.free(unsafe.Pointer(prefix2))
+	px := &Go_SCA_Prefix{
+		afi:    0x0100,
+		safi:   1,
+		length: 24,
+		addr:   [16]byte{},
+	}
+	pxip := net.IP{0x64, 0x0a, 0x0a, 0x00} // 100.10.10.0/24
+	copy(px.addr[:], pxip)
+	px.Pack(unsafe.Pointer(prefix2))
+	C.PrintSCA_Prefix(*prefix2)
+	fmt.Printf("prefix2 : %#v\n", prefix2)
+
+	valData.nlri = prefix2
+	fmt.Printf(" valData : %#v\n", valData)
+	fmt.Printf(" valData.bgpsec_path_attr : %#v\n", valData.bgpsec_path_attr)
+	C.printHex(C.int(bs_path_attr_length), valData.bgpsec_path_attr)
+	fmt.Printf(" valData.nlri : %#v\n", *valData.nlri)
+
+	// call validate
+	ret = C.validate(&valData)
+
+	fmt.Println("return: value:", ret, " and status: ", valData.status)
+	if ret == 1 {
+		fmt.Println(" +++ Validation function SUCCESS ...")
+
+	} else if ret == 0 {
+		fmt.Println(" Validation function Failed...")
+		switch valData.status {
+		case 1:
+			fmt.Println("Status Error: signature error")
+		case 2:
+			fmt.Println("Status Error: Key not found")
+		case 0x10000:
+			fmt.Println("Status Error: no data")
+		case 0x20000:
+			fmt.Println("Status Error: no prefix")
+		case 0x40000:
+			fmt.Println("Status Error: Invalid key")
+		case 0x10000000:
+			fmt.Println("Status Error: USER1")
+		case 0x20000000:
+			fmt.Println("Status Error: USER2")
+		}
+	}
+
+	/* ------------------------------------------
+	 * Test Module
+	 * ------------------------------------------
+	 */
 	/*
 	  var t *testing.T
 	  var evt C.SDL_KeyboardEvent
