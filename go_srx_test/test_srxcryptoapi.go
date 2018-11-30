@@ -17,6 +17,7 @@ void PrintSCA_Prefix(SCA_Prefix p){
 }
 
 int _sign(SCA_BGPSecSignData* signData );
+int sign(int count, SCA_BGPSecSignData** bgpsec_data);
 void printHex(int len, unsigned char* buff);
 int init(const char* value, int debugLevel, sca_status_t* status);
 int sca_SetKeyPath (char* key_path);
@@ -228,7 +229,15 @@ func main() {
 		signature:   nil,
 	}
 
+	arrBgpsecData := (**C.SCA_BGPSecSignData)(C.malloc(C.size_t(unsafe.Sizeof(bgpsecData))))
+	defer C.free(unsafe.Pointer(arrBgpsecData))
+	*(**C.SCA_BGPSecSignData)(arrBgpsecData) = &bgpsecData
+
+	fmt.Printf("bgpsecData: %#v\n", bgpsecData)
+	fmt.Printf("arrBgpsecData: %#v\n", arrBgpsecData)
+
 	ret := C._sign(&bgpsecData)
+	ret = C.sign(1, arrBgpsecData)
 
 	fmt.Println("return: value:", ret, " and status: ", bgpsecData.status)
 	if ret == 1 {
